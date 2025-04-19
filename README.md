@@ -1,3 +1,5 @@
 PyLENTS, the Python Local implementation of the Extended Nested Tagging Schema
 
-Documentation available at [diegocabello.com/ents](diegocabello.com/ents)
+Install: run `nix profile install github:diegocabello/pylents`
+
+Documentation available at [diegocabello.com/ents](https://diegocabello.com/ents)
