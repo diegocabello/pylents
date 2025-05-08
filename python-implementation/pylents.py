@@ -17,35 +17,43 @@ def is_visible_tag(tag):
     return 'show' not in tag or tag['show'] == True
 
 def assign_bidir_file_tag_rel(file, tag, operation, jf):
+
+    actual_tag_name = jf['aliases'].get(tag)
+
+    if actual_tag_name is None:
+        display_tag_name = tag
+    else:
+        display_tag_name = actual_tag_name
+    
+    foo = next((t for t in jf['tags'] if t['name'] == display_tag_name and is_visible_tag(t)), None)
+        
+    if not foo:
+        print(f"tag or alias does not exist: {tag}")
+        return
+
     if operation == 1:  # assign/add
         if not os.path.exists(file):
             print(f"file does not exist: {file}")
             return
         
-        foo = next((t for t in jf['tags'] if t['name'] == tag and is_visible_tag(t)), None) 
-        if foo:
-            if foo['type'] == 'dud':
-                print(f"cannot assign dud tag to files: \t{monad}")
-                return
-            if 'files' not in foo:
-                foo['files'] = []
-            if file not in foo['files']:
-                foo['files'].append(file)
-                print(f"assigned  file, tag: \t{file} \t{tag}")
-            else:
-                print(f"pre-exist file, tag: \t{file} \t{tag}")
-        else: 
-            print(f"tag does not exist: {tag}")
-    elif operation == 2:  # remove
-        foo = next((t for t in jf['tags'] if t['name'] == tag and is_visible_tag(t)), None)
-        if foo:
-            if 'files' in foo and file in foo['files']:
-                foo['files'].remove(file)
-                print(f"removed file, tag: \t{file} \t{tag}")
-            else:
-                print(f"there is no correlation between file '{file}' and tag '{tag}'")
+        if foo['type'] == 'dud':
+            print(f"cannot assign dud tag to files: \t{display_tag_name}")
+            return
+        if 'files' not in foo:
+            foo['files'] = []
+        if file not in foo['files']:
+            foo['files'].append(file)
+            print(f"assigned  file, tag: \t{file} \t{display_tag_name}")
         else:
-            print(f"tag does not exist: {tag}")
+            print(f"pre-exist file, tag: \t{file} \t{display_tag_name}")
+
+    elif operation == 2:  # remove
+        if 'files' in foo and file in foo['files']:
+            foo['files'].remove(file)
+            print(f"removed file, tag: \t{file} \t{tag}")
+        else:
+            print(f"there is no correlation between file '{file}' and tag '{display_tag_name}'")
+
     elif operation == 0: 
         print(f"invalid operation: {operation}")
     else:
@@ -54,7 +62,17 @@ def assign_bidir_file_tag_rel(file, tag, operation, jf):
 ### THESE ARE ALL RELATED
 
 def process_tag_hierarchy(tag_name, jf, normal_and_duds, normal_tags=None):
-    tag_obj = next((tag for tag in jf['tags'] if tag['name'] == tag_name and is_visible_tag(tag)), None)
+
+    actual_tag_name = jf['aliases'].get(tag_name)
+
+    if actual_tag_name is None:
+        display_tag_name = tag_name
+    else:
+        display_tag_name = actual_tag_name
+    
+    tag_obj = next((t for t in jf['tags'] if t['name'] == display_tag_name and is_visible_tag(t)), None)
+
+    #tag_obj = next((tag for tag in jf['tags'] if tag['name'] == tag_name and is_visible_tag(tag)), None)
     if not tag_obj:
         print(f"tag '{tag_name}' is not in tags")
         return
@@ -164,7 +182,17 @@ def main():
             return
 
         if command in ["tagtofiles", "ttf"]:
-            foo = next((tag for tag in jf['tags'] if tag['name'] == monad and is_visible_tag(tag)), None)
+
+            actual_tag_name = jf['aliases'].get(monad)
+
+            if actual_tag_name is None:
+                display_tag_name = monad
+            else:
+                display_tag_name = actual_tag_name
+            
+            foo = next((t for t in jf['tags'] if t['name'] == display_tag_name and is_visible_tag(t)), None)
+
+            #foo = next((tag for tag in jf['tags'] if tag['name'] == monad and is_visible_tag(tag)), None)
             if foo:
                 if foo['type'] == 'dud':
                     print(f"cannot assign dud tag to files: \t{monad}")
@@ -174,7 +202,7 @@ def main():
                 with open('tags.json', 'w') as f:
                     json.dump(jf, f, indent=2)
             else: 
-                print(f"tag does not exist: {tag}")
+                print(f"tag does not exist: {monad}")
         elif command in ["filetotags", "ftt"]:
             if not os.path.exists(monad):
                 print(f"file does not exist: {monad}")
