@@ -180,7 +180,7 @@ def represent_inspect(jf, files: list):
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: pylents <(ttf|ftt)|fil> [(<add|remove|show> <monad> <opt1> <opt2> ...) | (<tag1> <tag2> ...)]")
+        print("Usage: pylents <ttf|ftt|fil> [(<add|remove|show> <monad> <opt1> <opt2> ...) | (<tag1> <tag2> ...)]")
         return
 
     command = sys.argv[1]
@@ -188,7 +188,7 @@ def main():
     with open('tags.json', 'r') as f:
         jf = json.load(f)
 
-    if command in ["filter", "filt"]: # only filters tags right now
+    if command in ["filter", "fil"]: # only filters tags right now
         tags = sys.argv[2:]
         for file in filter_command(jf, tags):
             print(file.strip())
