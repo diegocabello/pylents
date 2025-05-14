@@ -191,7 +191,7 @@ def main():
     if command in ["filter", "filt"]: # only filters tags right now
         tags = sys.argv[2:]
         for file in filter_command(jf, tags):
-            print(file + '\n')
+            print(file)
     elif command in ["inspect", "insp"]:
         files = sys.argv[2:]
         represent_inspect(jf, files)
