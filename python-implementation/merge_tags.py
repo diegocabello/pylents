@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import json
 import os
 import sys
@@ -29,6 +28,11 @@ def merge_tags_files(temp_tags_file, output_file):
             existing_tag['type'] = tag['type']
             existing_tag['parent'] = tag['parent']
             existing_tag['children'] = tag['children']
+            
+            # Copy ancestry field from the new tags
+            if 'ancestry' in tag:
+                existing_tag['ancestry'] = tag['ancestry']
+                
             existing_tag['show'] = True  # Set to true since it's in the new file
             merged_tags.append(existing_tag)
         else:

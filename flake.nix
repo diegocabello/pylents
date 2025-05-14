@@ -1,5 +1,5 @@
 {
-  description = "pylents - Python and ENTS processing tools";
+  description = "pylents - Python and ENTS processing tools (v1746671722)";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -47,7 +47,6 @@
           if [ "$1" == "parse" ] || [ "$1" == "process" ]; then
             ${haskellParser}/bin/ents-parser "$2" temp_tags.json && 
             ${pythonEnv}/bin/python ${./python-implementation}/merge_tags.py temp_tags.json tags.json &&
-            rm temp_tags.json &&
             ${pythonEnv}/bin/python ${./python-implementation}/prettyprint.py tags.json 
           else
             ${pythonEnv}/bin/python ${./python-implementation}/pylents.py "$@"

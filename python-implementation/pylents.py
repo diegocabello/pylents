@@ -39,6 +39,24 @@ def assign_bidir_file_tag_rel(file, tag, operation, jf):
         if foo['type'] == 'dud':
             print(f"cannot assign dud tag to files: \t{display_tag_name}")
             return
+
+        elif foo['type'] == 'exclusive':
+            bar = single_inspect(jf, file)
+            qux = collect_tags_recursively(tag, jf)[1]
+            common_elements = bar & qux
+
+            if common_elements:
+                print(f"cannot assign exclusive tag {tag} to file {file} due to children {str(common_elements)[1:-1]}")
+                return
+
+        elif foo['type'] == 'normal':
+            bar = single_inspect(jf, file)
+            common_elements = set(foo['ancestry']) & bar
+
+            if common_elements:
+                print(f"cannot assign normal tag {tag} to file {file} due to file {file} being assigned to ancestor exclusive tag {str(common_elements)[1:-1]}")
+                return
+
         if 'files' not in foo:
             foo['files'] = []
         if file not in foo['files']:
@@ -59,79 +77,92 @@ def assign_bidir_file_tag_rel(file, tag, operation, jf):
     else:
         print("very invalid operation. something is wrong inside the code line 59")
 
-### THESE ARE ALL RELATED
+### THESE TWO ARE RELATED
 
-def process_tag_hierarchy(tag_name, jf, normal_and_duds, normal_tags=None):
-
+def collect_tags_recursively(tag_name, jf): # this returns two lists. it makes two lists, then recursively calls a function inside it that modify those lists, then returns those lists
+    #JF is passed once
+    #THIS CHECKS IF EVERYTHING LOOKS LIKE IT IS GOING TO WORK IN THE TOP TAG
     actual_tag_name = jf['aliases'].get(tag_name)
-
-    if actual_tag_name is None:
-        display_tag_name = tag_name
-    else:
-        display_tag_name = actual_tag_name
-    
+    display_tag_name = actual_tag_name if actual_tag_name is not None else tag_name
     tag_obj = next((t for t in jf['tags'] if t['name'] == display_tag_name and is_visible_tag(t)), None)
-
-    #tag_obj = next((tag for tag in jf['tags'] if tag['name'] == tag_name and is_visible_tag(tag)), None)
     if not tag_obj:
         print(f"tag '{tag_name}' is not in tags")
-        return
-        
-    collect_tags_recursively(tag_obj, jf, normal_and_duds, normal_tags)
-
-def collect_tags_recursively(tag_obj, jf, normal_and_duds, normal_tags=None):
-
-    if tag_obj['type'] not in ['normal', 'dud']:
-        print(f"tag '{tag_obj['name']}' is of invalid type '{tag_obj['type']}'")
-        return
-        
-    if tag_obj['name'] not in normal_and_duds:
-        normal_and_duds.append(tag_obj['name'])
+        return set(), set()
+    #CLOSE LAST TAG
+    normal_and_duds_set, normal_tags_set = set(), set()
     
-    if normal_tags is not None and tag_obj['type'] == 'normal':
-        if tag_obj['name'] not in normal_tags:
-            normal_tags.append(tag_obj['name'])
+    def edit_lists(tag_object, local_normal_and_duds_set, local_normal_tags_set):
+        if tag_object['type'] not in ['normal', 'dud', 'exclusive']:
+            print(f"tag '{tag_object['name']}' is of invalid type '{tag_object['type']}'")
+            return
+        
+        local_normal_and_duds_set.add(tag_object['name'])
+        
+        if local_normal_tags_set is not None and tag_object['type'] in ['normal', 'exclusive']:
+            local_normal_tags_set.add(tag_object['name'])
+        
+        for child_name in tag_object['children']:
+            child_object = next((tag for tag in jf['tags'] if tag['name'] == child_name and is_visible_tag(tag)), None)
+            if child_object:
+                edit_lists(child_object, local_normal_and_duds_set, local_normal_tags_set)
     
-    for child_name in tag_obj['children']:
-        child_obj = next((tag for tag in jf['tags'] if tag['name'] == child_name and is_visible_tag(tag)), None)
-        if child_obj:
-            collect_tags_recursively(child_obj, jf, normal_and_duds, 
-                                    normal_tags)
+    edit_lists(tag_obj, normal_and_duds_set, normal_tags_set)
+    
+    return normal_and_duds_set, normal_tags_set
+
 
 def filter_command(jf, tags):
-    normal_tags = []
-    normal_and_duds = []
+    all_normal_tags = set()
+    
     for tag in tags:
-        process_tag_hierarchy(tag, jf, normal_and_duds, normal_tags)
+        _, normal_tags_set = collect_tags_recursively(tag, jf)
+        all_normal_tags.update(normal_tags_set)
     
     unique_files = set()
-    for tag_name in normal_tags: 
-        foo = next((tag for tag in jf['tags'] if tag['name'] == tag_name and is_visible_tag(tag)), None)
-        if foo and 'files' in foo:
-            unique_files.update(foo['files'])
+    for tag_name in all_normal_tags:
+        tag_obj = next((tag for tag in jf['tags'] if tag['name'] == tag_name and is_visible_tag(tag)), None)
+        if tag_obj and 'files' in tag_obj:
+            unique_files.update(tag_obj['files'])
     
-    for file in sorted(unique_files):
-        print(file)
-        # it's going to go through the json and return all the files attatched to all the tags
+    return sorted(unique_files)
 
-def inspect_command(jf, files):
+### CLOSE RELATED
+
+
+def single_inspect(jf, file):
+    return_set = set()
+    for tag in jf['tags']:
+        if is_visible_tag(tag) and 'files' in tag and file in tag['files']:
+            return_set.add(tag['name'])
+    return return_set
+
+
+def represent_inspect(jf, files: list):
+
     if len(files) > 1:
         multi_display = True
         tab_container = '\t'
     else: 
         multi_display = False
         tab_container = ''
-    for file in files:
+
+    for count, element in enumerate([single_inspect(jf, file) for file in files]):
+
         if multi_display:
             header_length = max(20, len(file) + 5)
             padding = header_length - len(file)
-            print(f"\n====={file}{'=' * padding}")
+            print(f"\n====={files[count]}{'=' * padding}")
 
-        for tag in jf['tags']:
-            if is_visible_tag(tag) and 'files' in tag and file in tag['files']:
-                print(tab_container + tag['name'])
+        for tag in element:
+            print(tab_container + tag)
+                
 
 ### CLOSE RELATED
+
+# file name change or movement algorithm
+# 1. so now you have file name and fuzzy hash. if file name lookup returns nothing, then look up fuzzy hash. if it is close enough but it has changed, update fuzzy hash. if there are two close ones, deal with it. 
+# 2if both fail, then resort to xattr (less reliable because these can get left behind)
+# 3. if nothing, then say file is missing
 
 # def assign_pylents_uuid(path):
 #     if os.path.isfile(path):
@@ -159,10 +190,11 @@ def main():
 
     if command in ["filter", "filt"]: # only filters tags right now
         tags = sys.argv[2:]
-        filter_command(jf, tags)
+        for file in filter_command(jf, tags):
+            print(file + '\n')
     elif command in ["inspect", "insp"]:
         files = sys.argv[2:]
-        inspect_command(jf, files)
+        represent_inspect(jf, files)
     
     else: # catch-all for now
         if command not in ["tagtofiles", "ttf", "filetotags", 'ftt']:

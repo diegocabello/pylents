@@ -1,4 +1,5 @@
 module Main where
+
 import Control.Monad (void)
 import Data.Aeson (ToJSON(..), (.=))
 import qualified Data.Aeson as JSON
@@ -15,8 +16,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List (nub)
 
--- Updated tag types to include Exclusive
-data TagType = Normal | Dud | Exclusive
+data TagType = Normal | Dud
   deriving (Show, Eq)
 
 data Tag = Tag 
@@ -27,13 +27,11 @@ data Tag = Tag
   , children :: [Tag]
   } deriving (Show, Eq)
 
--- Updated FlatTag to include ancestry
 data FlatTag = FlatTag
   { flatTagName :: String
   , flatTagType :: TagType
   , flatTagParent :: String
   , flatTagChildren :: [String]
-  , flatTagAncestry :: [String]  -- Added ancestry field
   } deriving (Show, Eq)
 
 data ENTSData = ENTSData
@@ -46,20 +44,16 @@ data FlatENTSData = FlatENTSData
   , flatTags :: [FlatTag]
   } deriving (Show, Eq)
 
--- Updated ToJSON for TagType to include Exclusive
 instance ToJSON TagType where
   toJSON Normal = JSON.String (T.pack "normal")
   toJSON Dud = JSON.String (T.pack "dud")
-  toJSON Exclusive = JSON.String (T.pack "exclusive")
 
--- Updated ToJSON for FlatTag to include ancestry
 instance ToJSON FlatTag where
-  toJSON (FlatTag name tagType parent children ancestry) = JSON.Object $ KeyMap.fromList
+  toJSON (FlatTag name tagType parent children) = JSON.Object $ KeyMap.fromList
     [ (Key.fromString "name", JSON.String (T.pack name))
     , (Key.fromString "type", toJSON tagType)
     , (Key.fromString "parent", JSON.String (T.pack parent))
     , (Key.fromString "children", toJSON (map T.pack children))
-    , (Key.fromString "ancestry", toJSON (map T.pack ancestry))  -- Added ancestry field
     ]
 
 instance ToJSON FlatENTSData where
@@ -72,50 +66,10 @@ instance ToJSON FlatENTSData where
       aliasesToJSON m = JSON.Object $ 
         KeyMap.fromList [ (Key.fromString k, JSON.String (T.pack v)) | (k, v) <- Map.toList m ]
 
--- Functions to calculate ancestry
--- Build a map from tag names to their parent
-buildParentMap :: [FlatTag] -> Map String String
-buildParentMap tags = Map.fromList [(flatTagName tag, flatTagParent tag) | tag <- tags]
-
--- Calculate ancestry for a tag using the parent map
-calculateAncestry :: Map String String -> String -> [String]
-calculateAncestry parentMap tagName = 
-  let
-    getAncestry :: String -> [String]
-    getAncestry name = 
-      case Map.lookup name parentMap of
-        Nothing -> []  -- Should not happen
-        Just "root" -> []  -- Root has no ancestors
-        Just parent -> getAncestry parent ++ [parent]
-  in
-    getAncestry tagName
-
--- Add ancestry to flattened tags
-addAncestry :: [FlatTag] -> [FlatTag]
-addAncestry tags = 
-  let parentMap = buildParentMap tags
-  in [addAncestryToTag parentMap tag | tag <- tags]
-  where
-    addAncestryToTag :: Map String String -> FlatTag -> FlatTag
-    addAncestryToTag parentMap tag = 
-      let name = flatTagName tag
-          ancestry = calculateAncestry parentMap name
-      in tag {flatTagAncestry = ancestry}
-
--- Updated tag type parser to handle exclusive tags with -+ or +-
 tagTypeParser :: Parser TagType
-tagTypeParser = try exclusiveParser <|> normalDudParser
-  where
-    exclusiveParser = do
-      choice [
-        try (string "+-"),
-        try (string "-+")
-        ]
-      return Exclusive
-      
-    normalDudParser = 
-      (char '+' >> return Dud) <|>
-      (char '-' >> return Normal)
+tagTypeParser = 
+  (char '+' >> return Dud) <|>
+  (char '-' >> return Normal)
 
 spaceNoNL :: Parser ()
 spaceNoNL = void $ many (satisfy (\c -> isSpace c && c /= '\n' && c /= '\r'))
@@ -210,7 +164,6 @@ validateDudTags tags =
     hasDudTagWithAlias (Tag _ Dud alias _ _) = alias /= ""
     hasDudTagWithAlias (Tag _ _ _ _ children) = any hasDudTagWithAlias children
 
--- Updated flattenTags to initialize tags with empty ancestry
 flattenTags :: [Tag] -> [FlatTag]
 flattenTags tags = flattenTagsList tags []
   where
@@ -231,14 +184,13 @@ flattenTags tags = flattenTagsList tags []
         parentStr = case parentName of
                       Nothing -> "root"
                       Just p -> p
-        flatTag = FlatTag name tType parentStr childNames []  -- Empty ancestry initially
+        flatTag = FlatTag name tType parentStr childNames
         newAcc = if any (\ft -> flatTagName ft == name) acc
                  then acc
                  else acc ++ [flatTag]
       in
         foldl (\a c -> flattenTagWithChildren c a) newAcc childTags
 
--- Updated parseENTSFlat to add ancestry to the tags
 parseENTSFlat :: String -> Either String FlatENTSData
 parseENTSFlat input = do
   parsedTags <- case parseENTS input of
@@ -252,8 +204,7 @@ parseENTSFlat input = do
   -- validatedTags <- validateDudTags parsedTags
   
   let flatTagList = flattenTags parsedTags
-      flatTagListWithAncestry = addAncestry flatTagList
-  return $ FlatENTSData validatedAliases flatTagListWithAncestry
+  return $ FlatENTSData validatedAliases flatTagList
 
 entsToJSON :: FlatENTSData -> BS.ByteString
 entsToJSON = JSON.encode
