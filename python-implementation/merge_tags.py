@@ -60,9 +60,9 @@ def merge_tags_files(temp_tags_file, output_file):
     if 'files' in existing_data:
         if 'files' not in merged_data:
             merged_data['files'] = {}
-        for file, value in existing_data['files'].items():
+        for file in existing_data['files']:
             if file not in merged_data['files']:
-                merged_data['files'][file] = value
+                merged_data['files'].append(file)
 
     with open(output_file, 'w') as f:
         json.dump(merged_data, f, indent=2)
