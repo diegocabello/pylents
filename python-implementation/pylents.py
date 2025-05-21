@@ -224,7 +224,6 @@ def main():
             
             foo = next((t for t in jf['tags'] if t['name'] == display_tag_name and is_visible_tag(t)), None)
 
-            #foo = next((tag for tag in jf['tags'] if tag['name'] == monad and is_visible_tag(tag)), None)
             if foo:
                 if foo['type'] == 'dud':
                     print(f"cannot assign dud tag to files: \t{monad}")
@@ -235,7 +234,9 @@ def main():
                     json.dump(jf, f, indent=2)
             else: 
                 print(f"tag does not exist: {monad}")
+
         elif command in ["filetotags", "ftt"]:
+            
             if not os.path.exists(monad):
                 print(f"file does not exist: {monad}")
                 return

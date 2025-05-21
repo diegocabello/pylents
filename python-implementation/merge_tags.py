@@ -57,6 +57,13 @@ def merge_tags_files(temp_tags_file, output_file):
             if alias not in merged_data['aliases']:
                 merged_data['aliases'][alias] = value
     
+    if 'files' in existing_data:
+        if 'files' not in merged_data:
+            merged_data['files'] = {}
+        for file, value in existing_data['files'].items():
+            if file not in merged_data['files']:
+                merged_data['files'][file] = value
+
     with open(output_file, 'w') as f:
         json.dump(merged_data, f, indent=2)
     
